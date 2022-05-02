@@ -1,16 +1,23 @@
-//Attack on Logic Locking
+//Attack on Logic Locking - consideration of 2 input gates
 #include <bits/stdc++.h>
 using namespace std;
 int in,o,n,m,k,total; //no of input,output,internal nodes, edges, keygates
 //insert keygates
-void insertion(vector<vector<int>> &netlist,vector<int> &parent,int position,int gateNo){
-   int ind=0;
-   if(netlist[parent[position]][0]!=position){
-      ind=1;
+void insertion(vector<vector<int>> &netlist,vector<vector<int>> &parent,int position,int gateNo){
+   if(position>=total || parent[position].size()==0){
+      cout << "Invalid position for keygate" <<endl;
+      return;
    }
-   netlist[parent[position]][ind] = gateNo;
-   parent[gateNo] = parent[position];
-   parent[position] = gateNo;
+   //handling multiple parents
+   for(int i=0;i<parent[position].size();i++){
+      int ind=0;
+      if(netlist[parent[position][i]][0]!=position){
+         ind=1;
+      }
+      netlist[parent[position][i]][ind] = gateNo;
+      parent[gateNo].push_back(parent[position][i]);
+      parent[position][i] = gateNo;
+   }
    netlist[gateNo].push_back(position);
 }
 int dfs(vector<vector<int>> &netlist,int node,map<int,int> &value,map<int,string> &operand,
@@ -67,10 +74,10 @@ string solve_circuit(vector<vector<int>> &netlist,map<int,int> &value,map<int,st
 // provide all input for getting all output
 vector<string> all_output(vector<vector<int>> &netlist,map<int,int> &value,map<int,string> &operand){
    vector<string> res;
-   for(int i=0;i<pow(2,in);i++){ //pow(2,in)
+   for(int i=0;i<pow(2,in);i++){ 
       int temp_in  = 0,temp=i;
       while(temp_in<in){
-         value[temp_in] = temp%2; //cout << temp%2 <<" ";
+         value[temp_in] = temp%2; 
          temp /= 2;
          temp_in++;
       }
@@ -94,8 +101,35 @@ void update_keygates(map<int,int> &value,int i){
       ks++;
    }
 }
-//void find_isolated(){
-//}
+void dfs_isolated(vector<vector<int>> &parent,map<pair<int,int>,int> &visited_edges,
+                        set<int> &res,int node,int key,bool &status){
+   if(parent[node].size()==0){return;}
+   for(int p : parent[node]){
+      if(p>=n+in&&p<n+in+o){return;}
+      if(visited_edges.find({node,p})!=visited_edges.end()){
+         auto it = visited_edges.find({node,p});
+         res.erase((*it).second);
+         status = false;
+      }
+      visited_edges.insert({{node,p},key});
+      dfs_isolated(parent,visited_edges,res,p,key,status);
+   }
+}
+void find_isolated(vector<vector<int>> &parent){
+   set<int> res;
+   map<pair<int,int>,int> visited_edges;
+   bool status = true;
+   for(int i=n+in+o;i<total;i++){
+      status = true;
+      dfs_isolated(parent,visited_edges,res,i,i,status);
+      if(status){res.insert(i);}
+   }
+   cout <<"Isolated nodes are : ";
+   for(auto it = res.begin();it!=res.end();it++){
+      cout <<(*it)<<" ";
+   }
+   cout <<endl;
+}
 void read_data(){
    //no of input,output,internal nodes, edges, keygates
    cin >> in>> o >> n >> m >>k;
@@ -110,7 +144,7 @@ void read_data(){
    map<int,string> operand;
    total = in + o + n + k;
    vector<vector<int>> netlist(total);
-   vector<int> parent(total,-1);
+   vector<vector<int>> parent(total);
    int u,v;
    string s;
    //operands of gates
@@ -123,7 +157,7 @@ void read_data(){
    for(int i=0;i<m;i++){
       cin >> u >> v;
       netlist[v].push_back(u);
-      parent[u] = v;
+      parent[u].push_back(v);
    }
    cout << "Netlist created" <<endl;
    //actual output
@@ -131,7 +165,7 @@ void read_data(){
    //for(int l = 0;l<actual_result.size();l++){cout << actual_result[l] <<endl;}
    cout << "True result stored" <<endl;
    //keygates as input, where to insert
-   //find_isolated();
+   //key gates position and gate type
    int position;
    for(int i=0;i<k;i++){
       cin >> position >> s;
@@ -139,6 +173,8 @@ void read_data(){
       insertion(netlist,parent,position,n+in+o+i);
    }
    cout << "KeyGates Inserted" <<endl;
+   //to find isolated KeyGates
+   find_isolated(parent);
    for(int i=0;i<pow(2,k);i++){
       update_keygates(value,i);
       vector<string> keyruns = all_output(netlist,value,operand);
