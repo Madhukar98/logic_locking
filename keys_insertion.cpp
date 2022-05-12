@@ -21,15 +21,38 @@ void insertion(vector<vector<int>> &netlist,vector<vector<int>> &parent,int posi
    }
    netlist[gateNo].push_back(position);
 }
+void dfs(vector<vector<int>> &parent,int node,set<int> &visited){
+    if(visited.find(node)!=visited.end()){return;}
+    visited.insert(node);
 
-bool FindEdgeType(){return true;}
+    for(int p : parent[node]){
+        dfs(parent,p,visited);
+    }
+    return;
+}
+
+bool FindEdgeType(vector<vector<int>> &parent,int k1,int k2){
+    set<int> visited_k1;
+    set<int> visited_k2;
+    dfs(parent,k1,visited_k1);
+    dfs(parent,k2,visited_k2);
+    int common = 0;
+    for(auto it = visited_k1.begin();it!=visited_k1.end();it++){
+        for(auto itr = visited_k2.begin();itr!=visited_k2.end();itr++){
+            if((*it)==(*itr)){common++; break;}
+        }
+    }
+    if(common!=0&&visited_k1.size()-common>0&&visited_k2.size()-common>0){
+        return true;
+    }
+    return false;
+}
 int logic_locking(vector<vector<int>> &netlist,vector<vector<int>> &parent,int keySize){
     int cliqueSize = 0, cctr=1,kc=0;
     vector<int> order_keys(keySize+in,-1);
     set<int> KeyGateLocations; 
     //choose first random key gate and insert it
-    int keygate = rand()%keySize;
-    insertion(netlist,parent,in+keygate,n+in+o+kc);
+    int keygate = rand()%keySize; // if start after 7, that is keygate is 2
     KeyGateLocations.insert(keygate+in);
     order_keys[keygate+in] = n+in+o+kc;
     kc++;
@@ -41,10 +64,9 @@ int logic_locking(vector<vector<int>> &netlist,vector<vector<int>> &parent,int k
             if(KeyGateLocations.find(gate)==KeyGateLocations.end()){
                 bool edgetypes = true; //every edge is mutable
                 for(auto it = KeyGateLocations.begin();it!=KeyGateLocations.end();it++){
-                    edgetypes = edgetypes & (FindEdgeType()); 
+                    edgetypes = edgetypes & (FindEdgeType(parent,gate,(*it))); 
                 }
                 if(edgetypes){
-                    insertion(netlist,parent,gate,n+in+o+kc);
                     KeyGateLocations.insert(gate);
                     kc++;
                     order_keys[gate] = n+in+o+kc;
@@ -62,14 +84,17 @@ int logic_locking(vector<vector<int>> &netlist,vector<vector<int>> &parent,int k
                 if(keygate==keySize){keygate=0;}
             }
             cctr=1;
-            insertion(netlist,parent,keygate+in,n+in+o+kc);
             KeyGateLocations.insert(in+keygate);
             order_keys[in+keygate] = n+in+o+kc;
             kc++;
             cliqueSize = max(cctr,cliqueSize);
         }
     }
-    for(int i=0;i<order_keys.size();i++){cout << order_keys[i] <<" ";} cout <<endl;
+    for(int i=0;i<order_keys.size();i++){
+        if(order_keys[i]!=-1){
+            insertion(netlist,parent,i,order_keys[i]);
+        }
+        cout << order_keys[i] <<" ";} cout <<endl;
     return cliqueSize;
 }
 
@@ -84,7 +109,6 @@ void read_data(){
    */
    k = n;
    cout << "Initialized" <<endl;
-   //map<int,int> value;
    map<int,string> operand;
    total = in + o + n + k;
    vector<vector<int>> netlist(total);
